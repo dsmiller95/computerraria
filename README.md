@@ -56,7 +56,7 @@ For a comprehensive list of everything that is needed to run all aspects of this
 
 Navigate to where you want to keep this project and clone it. Copy computer.wld to your tModLoader world path. Depending on your platform, this is:
 ```
-Windows: Documents\My Games\Terraria\ModLoader\Worlds
+Windows: Documents\My Games\Terraria\tModLoader\Worlds
 Linux: ~/.local/share/Terraria/tModLoader/Worlds
 ```
 On Linux you can automate copying back and forth like this with the `copy-world.sh` script with either the `--to` (copy to world folder) or `--from` (copy from world folder) flags.
@@ -64,7 +64,7 @@ On Linux you can automate copying back and forth like this with the `copy-world.
 Next, navigate to the mod sources folder and clone [WireHead](https://github.com/misprit7/WireHead):
 ```
 #Windows
-cd "%userprofile%\Documents\My Games\Terraria\ModLoader\ModSources" && git clone https://github.com/misprit7/WireHead.git
+cd "%userprofile%\Documents\My Games\Terraria\tModLoader\ModSources" && git clone https://github.com/misprit7/WireHead.git
 
 #Linux
 cd "~/.local/share/Terraria/tModLoader/ModSources" && git clone https://github.com/misprit7/WireHead.git
@@ -77,6 +77,8 @@ cd <path to computerraria>/app/pong
 cargo rb
 ./copy-bin.sh /tmp/pong.txt
 ```
+
+If compile errors occur at this step (for example `can't find crate for 'core'`), consult the dockerfile to finish setting up your rust environment. 
 
 Start [tModLoader](https://store.steampowered.com/app/1281930/tModLoader/), and from the main menu go to Workshop->Develop and click on the Build button next to WireHead. For convenience I'd also recommend installing Cheat Sheet and HERO's Mod from the Download Mods section of the workshop if you haven't already. Then open the new world you copied earlier in game. In game type:
 ```
@@ -162,3 +164,31 @@ All automated tests written for the CPU. These are mostly handled through [risco
 Interfaces programmatically with running Terraria instance. This consists of both a python module as well as a command line wrapper to upload binaries, start execution and manipulate other fine grain controls without needing a GUI. 
 
 
+
+
+# Windows setup
+
+Setup windows subsystem for linux, run these commands in the `wsl` terminal to set up the rust build and hexdump toolchain. run this in the wsl root, not in this repository root, or crago install will try to install this project
+
+```sh
+sudo apt-get update
+sudo apt-get install -y bsdmainutils curl gcc
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > rustup.sh
+sh rustup.sh -y --profile minimal
+source "$HOME/.cargo/env"
+rustup target add riscv32i-unknown-none-elf
+rustup component add llvm-tools-preview
+cargo install cargo-binutils
+sudo rm -rf /root/.cargo/registry
+rustup target remove x86_64-unknown-linux-gnu
+```
+
+perform all builds in this wsl terminal, ex:
+
+```
+wsl
+cd <path to computerraria>/app/pong
+cargo rb
+./copy-bin.sh /mtn/c/tmp/pong.txt
+```
