@@ -89,7 +89,7 @@ Currently the NPCs that run the CPU clock are too far away to spawn immediately,
 
 ![Control Panel](doc/img/control-panel.png)
 
-After this workaround is done, press the first two of the three levers on the far right to start the program. Go through the orange teleporter to arrive at the screen area. Pong should be running and is controllable by the controller beneath the screen (use HERO's Mod's camera lock to see the screen and controls at the same time).
+After this workaround is done, press the top 2 of the 3 vertically stacked levers on the far right to start the program. Go through the orange teleporter to arrive at the screen area. Pong should be running and is controllable by the controller beneath the screen (use HERO's Mod's camera lock to see the screen and controls at the same time).
 
 ![Pong](doc/img/pong-still.png)
 
