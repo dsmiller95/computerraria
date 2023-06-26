@@ -9,8 +9,95 @@ entry!(main);
 const WIDTH: usize = 64;
 const HEIGHT: usize = 48;
 
-fn update_board(board: &[[u8; WIDTH]; HEIGHT]) -> [[u8; WIDTH]; HEIGHT] {
+const CHUNK_SIZE: usize = 16;
+const CHUNK_WIDTH: usize = 4 + 2;
+const CHUNK_HEIGHT: usize = 3 + 2;
+
+fn update_board(
+    board: &[[u8; WIDTH]; HEIGHT],
+    chunks: &[[bool; CHUNK_WIDTH]; CHUNK_HEIGHT],
+    chunk_cell: &[[u8; CHUNK_SIZE]; CHUNK_SIZE]) -> ([[u8; WIDTH]; HEIGHT], [[bool; CHUNK_WIDTH]; CHUNK_HEIGHT]) {
     let mut board_next: [[u8; WIDTH]; HEIGHT] = board.clone();
+    let mut chunks_next: [[bool; CHUNK_WIDTH]; CHUNK_HEIGHT] = [
+        [false,false,false,false,false,false],
+        [false,false,false,false,false,false],
+        [false,false,false,false,false,false],
+        [false,false,false,false,false,false],
+        [false,false,false,false,false,false],
+    ];
+
+    for chunk_r in 1..CHUNK_HEIGHT-1 {
+        for chunk_c in 1..CHUNK_WIDTH-1 {
+
+            if !chunks[chunk_r][chunk_c] {
+                continue;
+            }
+
+            let mut start_row = chunk_r * CHUNK_SIZE;
+            let mut end_row = start_row + CHUNK_SIZE;
+            if start_row <= 0{
+                start_row = 1
+            }
+            if end_row >= HEIGHT-1 {
+                end_row = HEIGHT - 2
+            }
+
+            
+            let mut start_col = chunk_r * CHUNK_SIZE;
+            let mut end_col = start_col + CHUNK_SIZE;
+            if start_col <= 0{
+                start_col = 1
+            }
+            if end_col >= WIDTH-1 {
+                end_col = WIDTH - 2
+            }
+
+            let mut chunk_change_mask : u8 = 0;
+            let mut changed = false;
+            for r in start_row..end_row {
+                for c in start_col..end_col {
+                    let neighbors_alive = (board[r][c] & 0b1110) >> 1;
+                    if board[r][c] & 1 == 0 {
+                        if neighbors_alive != 3 { continue }
+                        board_next[r][c] |= 1;
+                        board_next[r-1][c-1] += 0b10;
+                        board_next[r-1][c] += 0b10;
+                        board_next[r-1][c+1] += 0b10;
+                        board_next[r][c-1] += 0b10;
+                        board_next[r][c+1] += 0b10;
+                        board_next[r+1][c-1] += 0b10;
+                        board_next[r+1][c] += 0b10;
+                        board_next[r+1][c+1] += 0b10;
+                    } else {
+                        if neighbors_alive == 2 || neighbors_alive == 3 { continue }
+                        board_next[r][c] &= !1;
+                        board_next[r-1][c-1] -= 0b10;
+                        board_next[r-1][c] -= 0b10;
+                        board_next[r-1][c+1] -= 0b10;
+                        board_next[r][c-1] -= 0b10;
+                        board_next[r][c+1] -= 0b10;
+                        board_next[r+1][c-1] -= 0b10;
+                        board_next[r+1][c] -= 0b10;
+                        board_next[r+1][c+1] -= 0b10;
+                    }
+                    chunk_change_mask |= chunk_cell[r % CHUNK_SIZE][c % CHUNK_SIZE];
+                    changed = true;
+                }
+            }
+            if changed {
+                chunks_next[chunk_r][chunk_c] = true;
+                if chunk_change_mask & (1 << 0) != 0 { chunks_next[chunk_r - 1][chunk_c    ] = true }
+                if chunk_change_mask & (1 << 1) != 0 { chunks_next[chunk_r + 1][chunk_c    ] = true }
+                if chunk_change_mask & (1 << 2) != 0 { chunks_next[chunk_r    ][chunk_c - 1] = true }
+                if chunk_change_mask & (1 << 3) != 0 { chunks_next[chunk_r    ][chunk_c + 1] = true }
+                if chunk_change_mask & (1 << 4) != 0 { chunks_next[chunk_r - 1][chunk_c - 1] = true }
+                if chunk_change_mask & (1 << 5) != 0 { chunks_next[chunk_r + 1][chunk_c - 1] = true }
+                if chunk_change_mask & (1 << 6) != 0 { chunks_next[chunk_r - 1][chunk_c + 1] = true }
+                if chunk_change_mask & (1 << 7) != 0 { chunks_next[chunk_r + 1][chunk_c + 1] = true }
+            }
+        }
+    }
+
     // board_next[1][1] = board[1][1];
     for r in 1..HEIGHT-1 {
         // board_next[r+1][1] = board[r+1][1];
@@ -46,7 +133,7 @@ fn update_board(board: &[[u8; WIDTH]; HEIGHT]) -> [[u8; WIDTH]; HEIGHT] {
             
         }
     }
-    board_next
+    (board_next, chunks_next)
 }
 
 // Following technique from https://www.jagregory.com/abrash-black-book/#chapter-17-the-game-of-life
@@ -101,6 +188,13 @@ fn main() -> ! {
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
         [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
     ];
+    let mut chunks: [[bool; CHUNK_WIDTH]; CHUNK_HEIGHT] =  [
+        [false,false,false,false,false,false],
+        [false, true, true, true, true,false],
+        [false, true, true, true, true,false],
+        [false, true, true, true, true,false],
+        [false,false,false,false,false,false],
+    ];
     for r in 0..board.len() {
         for c in 0..board[0].len() {
             if r == 0 || r == board.len() - 1 || c == 0 || c == board[0].len() - 1 { 
@@ -118,12 +212,51 @@ fn main() -> ! {
             board[r][c] |= neighbors_alive << 1;
         }
     }
+
+    let mut chunk_cell : [[u8; CHUNK_SIZE]; CHUNK_SIZE] = [
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+        [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    ];
+
+    for r in 0..CHUNK_SIZE {
+        for c in 0..CHUNK_SIZE {
+            let mut mask: u8 = 0;
+            if r == 0            { mask |= 1 << 0 };
+            if r == CHUNK_SIZE-1 { mask |= 1 << 1 };
+            if c == 0            { mask |= 1 << 2 };
+            if c == CHUNK_SIZE-1 { mask |= 1 << 3 };
+
+            if (r == 0)            && (c == 0)            { mask |= 1 << 4}
+            if (r == CHUNK_SIZE-1) && (c == 0)            { mask |= 1 << 5}
+            if (r == 0)            && (c == CHUNK_SIZE-1) { mask |= 1 << 6}
+            if (r == CHUNK_SIZE-1) && (c == CHUNK_SIZE-1) { mask |= 1 << 7}
+            chunk_cell[r][c] = mask;
+        }
+    }
+
+
     let mut pixels: [u64; graphics::HEIGHT] = [0; graphics::HEIGHT];
     let mut screen = graphics::init();
     graphics::write_long(&mut screen, &pixels);
     graphics::update(&mut screen);
+
+
     loop {
-        board = update_board(&board);
+        (board, chunks) = update_board(&board, &chunks, &chunk_cell);
         for r in 0..HEIGHT {
             pixels[r] = 0;
             for c in 0..WIDTH {
